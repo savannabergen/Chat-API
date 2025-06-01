@@ -7,12 +7,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prettier": "prettier --write ."
   },
   "dependencies": {
-    "@siavanna/atomic-lib": "^5.2.1",
+    "@rails/actioncable": "^8.0.200",
+    "@siavanna/atomic-lib": "^5.2.7",
     "@siavanna/ts_library": "^0.5.6",
     "autoprefixer": "^10.4.21",
+    "axios": "^1.9.0",
     "next": "15.3.2",
     "postcss": "^8.5.3",
     "react": "^19.0.0",
@@ -23,6 +26,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "prettier": "^3.5.3",
     "typescript": "^5"
   }
 }
