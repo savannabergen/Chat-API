@@ -3,170 +3,67 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar, ChatWindow } from "@siavanna/atomic-lib";
 import {
-  apiClient,
-  getRooms,
-  getUsers,
-  getMessages,
-  getParticipants,
+  fetchRooms,
+  fetchMessages,
+  fetchParticipants,
   sendMessage,
-} from "../../utils/apiClient";
-import consumer from "../../utils/actioncable";
-import { ChatWindowProps } from "@siavanna/atomic-lib";
-import axios, { AxiosError } from "axios";
-
-type Room = Awaited<ReturnType<typeof getRooms>>[number];
-type User = Awaited<ReturnType<typeof getUsers>>[number];
-type Participant = Awaited<ReturnType<typeof getParticipants>>[number];
+} from "./api";
+import cable from "./cable";
+import { Room, Message, Participant } from "./types";
 
 const DashBoardPage = () => {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [messages, setMessages] = useState<ChatWindowProps["messages"]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) {
       router.push("/login");
     } else {
-      const checkAuth = async () => {
+      const loadData = async () => {
         try {
-          const response = await apiClient.get("/users/edit");
-          fetchRooms();
-          fetchUsers();
-        } catch (error: unknown) {
-          if (axios.isAxiosError(error)) {
-            setError(
-              `Error ${error.response?.status}: ${error.response?.statusText}`,
-            );
-            router.push("/login");
-          } else {
-            setError("An unknown error occurred");
-          }
+          const roomsData = await fetchRooms();
+          setRooms(roomsData);
+          setLoading(false);
+        } catch (error) {
+          console.error(error);
         }
       };
-      checkAuth();
+      loadData();
     }
-  }, []);
+  }, [router]);
 
-  useEffect(() => {
-    if (currentRoom) {
-      const subscription = consumer.subscriptions.create(
-        { channel: "Turbo::StreamsChannel", room_id: currentRoom.id },
-        {
-          received: (data: any) => {
-            setMessages((prevMessages: ChatWindowProps["messages"]) => [
-              ...prevMessages,
-              data as ChatWindowProps["messages"][number],
-            ]);
-          },
-        },
-      );
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [currentRoom]);
-
-  const fetchRooms = async () => {
-    try {
-      const data = await getRooms();
-      setRooms(data);
-      if (data.length > 0) {
-        setCurrentRoom(data[0]);
-        fetchMessages(data[0].id);
-        fetchParticipants(data[0].id);
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(
-          `Error ${error.response?.status}: ${error.response?.statusText}`,
-        );
-      } else {
-        setError("Error fetching rooms");
-      }
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(
-          `Error ${error.response?.status}: ${error.response?.statusText}`,
-        );
-      } else {
-        setError("Error fetching users");
-      }
-    }
-  };
-
-  const fetchMessages = async (roomId: number) => {
-    try {
-      const data = await getMessages(roomId);
-      setMessages(data);
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(
-          `Error ${error.response?.status}: ${error.response?.statusText}`,
-        );
-      } else {
-        setError("Error fetching messages");
-      }
-    }
-  };
-
-  const fetchParticipants = async (roomId: number) => {
-    try {
-      const data = await getParticipants(roomId);
-      setParticipants(data);
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(
-          `Error ${error.response?.status}: ${error.response?.statusText}`,
-        );
-      } else {
-        setError("Error fetching participants");
-      }
-    }
-  };
-
-  const handleRoomChange = (room: Room) => {
+  const handleRoomChange = async (room: Room) => {
     setCurrentRoom(room);
-    fetchMessages(room.id);
-    fetchParticipants(room.id);
+    setMessages([]);
+    setParticipants([]);
+    try {
+      const messagesData = await fetchMessages(room.id);
+      const participantsData = await fetchParticipants(room.id);
+      setMessages(messagesData);
+      setParticipants(participantsData);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const handleSendMessage: ChatWindowProps["onSendMessage"] = async (
-    text: string,
-  ) => {
+  const handleSendMessage = async (text: string) => {
     try {
       if (currentRoom) {
-        const data = await sendMessage(currentRoom.id, text);
-        setMessages((prevMessages: ChatWindowProps["messages"]) => [
-          ...prevMessages,
-          data as ChatWindowProps["messages"][number],
-        ]);
+        const message = await sendMessage(currentRoom.id, text);
+        setMessages([...messages, message]);
       }
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(
-          `Error ${error.response?.status}: ${error.response?.statusText}`,
-        );
-      } else {
-        setError("Error sending message");
-      }
+      console.error(error);
     }
   };
 
-  if (error) {
-    return <div>Error: {error}</div>;
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   return (
@@ -182,7 +79,7 @@ const DashBoardPage = () => {
             <ChatWindow
               key={currentRoom.id}
               className="chat-window"
-              messages={messages || []}
+              messages={messages}
               onSendMessage={handleSendMessage}
               placeholder="Type a message..."
             />
