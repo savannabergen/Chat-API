@@ -31,7 +31,7 @@ const Login = () => {
       if (response.ok) {
         if (data.status && data.status.token) {
           localStorage.setItem("authToken", data.status.token);
-          router.push("/dashboard");
+          router.push("/chat");
         } else {
           setError("Error fetching token");
         }

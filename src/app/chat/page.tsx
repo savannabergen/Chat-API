@@ -3,15 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar, ChatWindow } from "@siavanna/atomic-lib";
 import {
-  fetchRooms,
   fetchMessages,
   fetchParticipants,
   sendMessage,
 } from "./api";
 import cable from "./cable";
-import { Room, Message, Participant } from "./types";
+import { Room, Message, Participant, User } from "./types";
+import { fetchRooms } from "../../lib/api/rooms";
 
-const DashBoardPage = () => {
+const ChatPage = () => {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
@@ -69,10 +69,10 @@ const DashBoardPage = () => {
   return (
     <div className="container" style={{ display: "flex", height: "100vh" }}>
       <Sidebar
-        rooms={rooms}
-        participants={participants}
-        onRoomChange={handleRoomChange}
-      />
+  rooms={rooms}
+  participants={participants || []}
+  onRoomChange={handleRoomChange}
+/>
       <div className="chat-container" style={{ flex: 1 }}>
         {currentRoom && (
           <div>
@@ -90,4 +90,4 @@ const DashBoardPage = () => {
   );
 };
 
-export default DashBoardPage;
+export default ChatPage;
